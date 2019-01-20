@@ -40,6 +40,13 @@ test('prints an error when object is passed as input', async () => {
   expect(stderr).toBe('Error: Top-level object should be an array.\n')
 })
 
+test('uses id property as hash if available', async () => {
+  const input = [{ id: 1 }, { id: 2 }]
+  const [home, cachePath] = temp()
+  await run(input, [], home)
+  expect(await readFile(cachePath)).toBe('1\n2\n')
+})
+
 test('writes hashes of received objects to cache in $HOME/.config', async () => {
   const input = [{ foo: 'bar' }, { foo: 'xyz' }]
   const [home, cachePath] = temp()

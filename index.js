@@ -50,8 +50,10 @@ const lineNotInFile = (file, str) =>
       })
   })
 
-// TODO: If object has id, use that
-const objectToId = (obj) => sha1base64(fastJsonStableStringify(obj))
+const objectToId = (obj) =>
+  obj.hasOwnProperty('id')
+    ? obj.id.toString()
+    : sha1base64(fastJsonStableStringify(obj))
 
 const main = async (stdin, stdout, stderr, argv, home) => {
   const homeCachePath = path.join(home, '.config', 'json-notify-cache')
