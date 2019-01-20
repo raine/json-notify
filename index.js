@@ -89,7 +89,7 @@ const main = async (stdin, stdout, stderr, argv, home) => {
       if (newItems.length) stdout.write(JSON.stringify(newItems, null, 2))
     })
     .catch((err) => {
-      logError(stderr)(err)
+      onParseError(logError(stderr))(err)
       process.exitCode = 1
     })
 }
