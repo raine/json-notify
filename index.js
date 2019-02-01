@@ -1,5 +1,4 @@
 const fs = require('fs')
-
 const { parser } = require('stream-json/Parser')
 const { streamArray } = require('stream-json/streamers/StreamArray')
 const debug = require('debug')('json-notify')
@@ -8,7 +7,6 @@ const { transform, pipe, filter, tap, collect, reduce } = require('bluestream')
 const split2 = require('split2')
 const fastJsonStableStringify = require('fast-json-stable-stringify')
 const mkdir = require('./lib/mkdir')
-
 const sha1base64 = require('./lib/sha1base64')
 
 const lines = (str) => str.split('\n')
@@ -24,8 +22,8 @@ const onParseError = (logError) => (err) => {
   )
 }
 
-const lineNotInFile = (file, str) =>
-  new Promise((res, rej) => {
+const findLineInFile = (file, str) =>
+  new Promise((resolve, reject) => {
     let found = false
     let readStream
 
@@ -35,19 +33,17 @@ const lineNotInFile = (file, str) =>
         if (chunk === str) {
           debug(`${str} found in cache`)
           found = true
-          res(false)
+          resolve(true)
           readStream.destroy()
         }
       })
       .on('end', () => {
         if (!found) {
           debug(`${str} not found in cache`)
-          res(true)
+          resolve(false)
         }
       })
-      .on('error', (err) => {
-        rej(err)
-      })
+      .on('error', reject)
   })
 
 const objectToId = (obj) =>
@@ -70,7 +66,9 @@ const main = async (stdin, stdout, stderr, argv, home) => {
     parser(),
     streamArray(),
     transform(({ value }) => value),
-    filter((obj) => lineNotInFile(cacheFilePath, objectToId(obj))),
+    filter((obj) =>
+      findLineInFile(cacheFilePath, objectToId(obj)).then((x) => !x)
+    ),
     reduce((acc, value) => acc.concat(value), [])
   )
     .then(
@@ -88,7 +86,9 @@ const main = async (stdin, stdout, stderr, argv, home) => {
         })
     )
     .then((newItems) => {
-      if (newItems.length) stdout.write(JSON.stringify(newItems, null, 2))
+      if (newItems.length) {
+        stdout.write(JSON.stringify(newItems, null, 2))
+      }
     })
     .catch((err) => {
       onParseError(logError(stderr))(err)
