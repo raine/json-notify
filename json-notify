@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-require('../')(
+require('./index')(
   process.stdin,
   process.stdout,
   process.stderr,

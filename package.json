@@ -7,6 +7,9 @@
     "test": "jest",
     "test:watch": "jest --watch"
   },
+  "bin": {
+    "json-notify": "./json-notify"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
