@@ -9,7 +9,7 @@ const split2 = require('split2')
 const fastJsonStableStringify = require('fast-json-stable-stringify')
 const mkdir = require('./lib/mkdir')
 const sha1base64 = require('./lib/sha1base64')
-const { parseArgv } = require('./lib/argv')
+const { parseArgv, HELP } = require('./lib/argv')
 
 const lines = (str) => str.split('\n')
 const firstLine = (str) => lines(str)[0]
@@ -56,6 +56,11 @@ const objectToId = (obj) =>
 const main = async (stdin, stdout, stderr, argv, home) => {
   const opts = parseArgv(argv)
   if (opts.verbose) Debug.enable('json-notify')
+  if (opts.help) {
+    stderr.write(HELP)
+    process.exitCode = 1
+    return
+  }
   const homeCachePath = path.join(home, '.config', 'json-notify-cache')
   mkdir(path.dirname(homeCachePath))
   const cacheFilePath = homeCachePath // TODO: Override with argv

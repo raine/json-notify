@@ -18,7 +18,8 @@ const run = async (input, argv = [], home = tempy.directory()) => {
   const stdin = new PassThrough()
   const stdout = new PassThrough()
   const stderr = new PassThrough()
-  stdin.end(typeof input !== 'string' ? JSON.stringify(input) : input)
+  if (input)
+    stdin.end(typeof input !== 'string' ? JSON.stringify(input) : input)
   await main(stdin, stdout, stderr, argv, home)
   stderr.end()
   stdout.end()
@@ -89,4 +90,10 @@ test('prints new items as json', async () => {
         }
       ]`
   )
+})
+
+test('prints help with --help', async () => {
+  const input = null
+  const [_, stderr] = await run(null, ['--help'])
+  expect(stderr.split('\n')[0]).toBe(`Usage: json-notify [options]`)
 })
