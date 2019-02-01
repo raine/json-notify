@@ -74,6 +74,13 @@ test('appends hash to existing cache', async () => {
   )
 })
 
+test('--cache-path overrides the cache location', async () => {
+  const input = [{ foo: 'bar' }]
+  const tempCachePath = tempy.file()
+  await run(input, ['--cache-path', tempCachePath])
+  expect(await readFile(tempCachePath)).toBe(`pedE0BZFQNM7HX6mFsKPL6l+dUo=\n`)
+})
+
 test('prints new items as json', async () => {
   const input = [{ foo: 'bar' }, { foo: 'xyz' }, { foo: '123' }]
   const [home, cachePath] = temp()

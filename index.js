@@ -54,18 +54,17 @@ const objectToId = (obj) =>
     : sha1base64(fastJsonStableStringify(obj))
 
 const main = async (stdin, stdout, stderr, argv, home) => {
-  const opts = parseArgv(argv)
+  const opts = parseArgv(argv, home)
   if (opts.verbose) Debug.enable('json-notify')
   if (opts.help) {
     stderr.write(HELP)
     process.exitCode = 1
     return
   }
-  const homeCachePath = path.join(home, '.config', 'json-notify-cache')
-  mkdir(path.dirname(homeCachePath))
-  const cacheFilePath = homeCachePath // TODO: Override with argv
-  debug('cacheFilePath', cacheFilePath)
-  const cacheWriteStream = fs.createWriteStream(cacheFilePath, {
+
+  mkdir(path.dirname(opts.cachePath))
+  debug('cachePath', opts.cachePath)
+  const cacheWriteStream = fs.createWriteStream(opts.cachePath, {
     encoding: 'utf8',
     flags: 'a'
   })
@@ -76,7 +75,7 @@ const main = async (stdin, stdout, stderr, argv, home) => {
     streamArray(),
     transform(({ value }) => value),
     filter((obj) =>
-      findLineInFile(cacheFilePath, objectToId(obj)).then((x) => !x)
+      findLineInFile(opts.cachePath, objectToId(obj)).then((x) => !x)
     ),
     reduce((acc, value) => acc.concat(value), [])
   )
