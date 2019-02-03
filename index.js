@@ -4,7 +4,7 @@ const { streamArray } = require('stream-json/streamers/StreamArray')
 const Debug = require('debug')
 const debug = Debug('json-notify')
 const path = require('path')
-const { transform, pipe, filter, tap, collect, reduce } = require('bluestream')
+const { transform, pipe, filter, reduce } = require('bluestream')
 const split2 = require('split2')
 const fastJsonStableStringify = require('fast-json-stable-stringify')
 const mkdir = require('./lib/mkdir')
@@ -62,9 +62,11 @@ const main = async (stdin, stdout, stderr, argv, home) => {
     return
   }
 
-  mkdir(path.dirname(opts.cachePath))
-  debug('cachePath', opts.cachePath)
-  const cacheWriteStream = fs.createWriteStream(opts.cachePath, {
+  const cacheFilePath = path.join(opts.cachePath, `${opts.name}.cache`)
+  debug('cache directory', opts.cachePath)
+  debug('cache file', cacheFilePath)
+  mkdir(opts.cachePath)
+  const cacheWriteStream = fs.createWriteStream(cacheFilePath, {
     encoding: 'utf8',
     flags: 'a'
   })
@@ -75,7 +77,7 @@ const main = async (stdin, stdout, stderr, argv, home) => {
     streamArray(),
     transform(({ value }) => value),
     filter((obj) =>
-      findLineInFile(opts.cachePath, objectToId(obj)).then((x) => !x)
+      findLineInFile(cacheFilePath, objectToId(obj)).then((x) => !x)
     ),
     reduce((acc, value) => acc.concat(value), [])
   )

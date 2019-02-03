@@ -7,6 +7,7 @@ const tempy = require('tempy')
 const { PassThrough } = require('stream')
 const mkdir = require('../lib/mkdir')
 const { readAsync } = require('bluestream')
+const stringArgv = require('string-argv')
 
 const readFileAsync = promisify(fs.readFile)
 const writeFileAsync = promisify(fs.writeFile)
@@ -14,10 +15,11 @@ const readFile = (file) => readFileAsync(file, 'utf8')
 const writeFile = (file, data) => writeFileAsync(file, data, 'utf8')
 const toString = (x) => (x !== null ? x.toString() : null)
 
-const run = async (input, argv = [], home = tempy.directory()) => {
+const run = async (input, args = '', home = tempy.directory()) => {
   const stdin = new PassThrough()
   const stdout = new PassThrough()
   const stderr = new PassThrough()
+  const argv = stringArgv(args)
   if (input)
     stdin.end(typeof input !== 'string' ? JSON.stringify(input) : input)
   await main(stdin, stdout, stderr, argv, home)
@@ -29,67 +31,79 @@ const run = async (input, argv = [], home = tempy.directory()) => {
   ])
 }
 
+const TEST_INPUT = [{ foo: 'bar' }, { foo: 'xyz' }]
+const TEST_INPUT_HASHES = d`
+  pedE0BZFQNM7HX6mFsKPL6l+dUo=
+  JLlNsm5BmruzidmR1EbUCv3dgZs=\n`
+
 const temp = () => {
   const home = tempy.directory()
-  const cachePath = path.join(home, '.config', 'json-notify-cache')
-  mkdir(path.dirname(cachePath))
+  const cachePath = path.join(home, '.config', 'json-notify')
+  mkdir(cachePath)
   return [home, cachePath]
 }
 
 test('prints an error when object is passed as input', async () => {
-  const [stdout, stderr] = await run('{}', [])
+  const [stdout, stderr] = await run('{}', '')
   expect(stderr).toBe('Error: Top-level object should be an array.\n')
 })
 
-test('uses id property as hash if available', async () => {
-  const input = [{ id: 1 }, { id: 2 }]
-  const [home, cachePath] = temp()
-  await run(input, [], home)
-  expect(await readFile(cachePath)).toBe('1\n2\n')
-})
+describe('cache', () => {
+  test('writes hashes to default cache by default', async () => {
+    const [home] = temp()
+    await run(TEST_INPUT, '', home)
+    expect(
+      await readFile(path.join(home, '.config', 'json-notify', 'default.cache'))
+    ).toBe(TEST_INPUT_HASHES)
+  })
 
-test('writes hashes of received objects to cache in $HOME/.config', async () => {
-  const input = [{ foo: 'bar' }, { foo: 'xyz' }]
-  const [home, cachePath] = temp()
-  await run(input, [], home)
-  expect(await readFile(cachePath)).toBe(
-    d`pedE0BZFQNM7HX6mFsKPL6l+dUo=
-      JLlNsm5BmruzidmR1EbUCv3dgZs=\n`
-  )
-})
+  test('writes hashes to cache file specified by --name', async () => {
+    const [home] = temp()
+    await run(TEST_INPUT, '--name test', home)
+    expect(
+      readFile(path.join(home, '.config', 'json-notify', 'test.cache'))
+    ).resolves.toBe(TEST_INPUT_HASHES)
+  })
 
-test('appends hash to existing cache', async () => {
-  const input = [{ foo: 'bar' }, { foo: 'xyz' }, { foo: '123' }]
-  const [home, cachePath] = temp()
-  await writeFile(
-    cachePath,
-    d`pedE0BZFQNM7HX6mFsKPL6l+dUo=
-      JLlNsm5BmruzidmR1EbUCv3dgZs=\n`
-  )
-  await run(input, [], home)
-  expect(await readFile(cachePath)).toBe(
-    d`pedE0BZFQNM7HX6mFsKPL6l+dUo=
-      JLlNsm5BmruzidmR1EbUCv3dgZs=
-      tCZLP88NkBIfJD1s7bgZ3Zx56jU=\n`
-  )
-})
+  test('uses id property instead of hash if available', async () => {
+    const input = [{ id: 1 }, { id: 2 }]
+    const [home] = temp()
+    await run(input, '', home)
+    expect(
+      readFile(path.join(home, '.config', 'json-notify', 'default.cache'))
+    ).resolves.toBe('1\n2\n')
+  })
 
-test('--cache-path overrides the cache location', async () => {
-  const input = [{ foo: 'bar' }]
-  const tempCachePath = tempy.file()
-  await run(input, ['--cache-path', tempCachePath])
-  expect(await readFile(tempCachePath)).toBe(`pedE0BZFQNM7HX6mFsKPL6l+dUo=\n`)
+  test('appends hash to existing default cache', async () => {
+    const input = [...TEST_INPUT, { foo: '123' }]
+    const [home] = temp()
+    await writeFile(
+      path.join(home, '.config', 'json-notify', 'default.cache'),
+      TEST_INPUT_HASHES
+    )
+    await run(input, '', home)
+    expect(readFile(path.join(home, '.config', 'json-notify', 'default.cache')))
+      .resolves.toBe(d`${TEST_INPUT_HASHES.trim()}
+             tCZLP88NkBIfJD1s7bgZ3Zx56jU=\n`)
+  })
+
+  test('--cache-path overrides the cache location', async () => {
+    const tempCachePath = tempy.directory()
+    await run(TEST_INPUT, `--cache-path ${tempCachePath}`)
+    expect(await readFile(path.join(tempCachePath, 'default.cache'))).toBe(
+      TEST_INPUT_HASHES
+    )
+  })
 })
 
 test('prints new items as json', async () => {
-  const input = [{ foo: 'bar' }, { foo: 'xyz' }, { foo: '123' }]
-  const [home, cachePath] = temp()
+  const input = [...TEST_INPUT, { foo: '123' }]
+  const [home] = temp()
   await writeFile(
-    cachePath,
-    d`pedE0BZFQNM7HX6mFsKPL6l+dUo=
-      JLlNsm5BmruzidmR1EbUCv3dgZs=\n`
+    path.join(home, '.config', 'json-notify', 'default.cache'),
+    TEST_INPUT_HASHES
   )
-  const [stdout, _] = await run(input, [], home)
+  const [stdout, _] = await run(input, '', home)
   expect(stdout).toBe(
     d`[
         {
@@ -100,7 +114,6 @@ test('prints new items as json', async () => {
 })
 
 test('prints help with --help', async () => {
-  const input = null
-  const [_, stderr] = await run(null, ['--help'])
+  const [_, stderr] = await run(null, '--help')
   expect(stderr.split('\n')[0]).toBe(`Usage: json-notify [options]`)
 })
