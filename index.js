@@ -83,7 +83,7 @@ const main = async (stdin, stdout, stderr, argv, home) => {
   )
     .then(
       (newItems) =>
-        new Promise((resolve, reject) => {
+        new Promise((resolve) => {
           if (newItems !== null) {
             newItems.map(objectToId).forEach((id) => {
               debug(`${id} added to cache`)
