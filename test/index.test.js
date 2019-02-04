@@ -43,6 +43,11 @@ const temp = () => {
   return [home, cachePath]
 }
 
+test('prints help with --help', async () => {
+  const [_, stderr] = await run(null, '--help')
+  expect(stderr.split('\n')[0]).toBe(`Usage: json-notify [options]`)
+})
+
 test('prints an error when object is passed as input', async () => {
   const [stdout, stderr] = await run('{}', '')
   expect(stderr).toBe('Error: Top-level object should be an array.\n')
@@ -109,11 +114,23 @@ test('prints new items as json', async () => {
         {
           "foo": "123"
         }
-      ]`
+      ]\n`
   )
 })
 
-test('prints help with --help', async () => {
-  const [_, stderr] = await run(null, '--help')
-  expect(stderr.split('\n')[0]).toBe(`Usage: json-notify [options]`)
+test('prints an empty list without new items', async () => {
+  const [home] = temp()
+  await writeFile(
+    path.join(home, '.config', 'json-notify', 'default.cache'),
+    TEST_INPUT_HASHES
+  )
+  const [stdout, _] = await run(TEST_INPUT, '', home)
+  expect(stdout).toBe('[]\n')
+})
+
+test('does not print on first run for specific cache', async () => {
+  const input = TEST_INPUT
+  const [home] = temp()
+  const [stdout, _] = await run(input, '', home)
+  expect(stdout).toBe(null)
 })

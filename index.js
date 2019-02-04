@@ -10,11 +10,17 @@ const fastJsonStableStringify = require('fast-json-stable-stringify')
 const mkdir = require('./lib/mkdir')
 const sha1base64 = require('./lib/sha1base64')
 const { parseArgv, HELP } = require('./lib/argv')
+const { promisify } = require('util')
 
 const lines = (str) => str.split('\n')
 const firstLine = (str) => lines(str)[0]
 const logError = (stderr) => (msg) => stderr.write(msg.toString() + '\n')
 const readFileStream = (file) => fs.createReadStream(file, { encoding: 'utf8' })
+const access = promisify(fs.access)
+const fileExist = (file) =>
+  access(file, fs.constants.F_OK)
+    .then(() => true)
+    .catch(() => false)
 
 const onParseError = (logError) => (err) => {
   logError(
@@ -66,6 +72,8 @@ const main = async (stdin, stdout, stderr, argv, home) => {
   debug('cache directory', opts.cachePath)
   debug('cache file', cacheFilePath)
   mkdir(opts.cachePath)
+
+  const firstRun = !(await fileExist(cacheFilePath))
   const cacheWriteStream = fs.createWriteStream(cacheFilePath, {
     encoding: 'utf8',
     flags: 'a'
@@ -96,9 +104,7 @@ const main = async (stdin, stdout, stderr, argv, home) => {
         })
     )
     .then((newItems) => {
-      if (newItems.length) {
-        stdout.write(JSON.stringify(newItems, null, 2))
-      }
+      if (!firstRun) stdout.write(JSON.stringify(newItems, null, 2) + '\n')
     })
     .catch((err) => {
       onParseError(logError(stderr))(err)
