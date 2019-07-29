@@ -54,9 +54,9 @@ const findLineInFile = (file, str) =>
       .on('error', reject)
   })
 
-const objectToId = (obj) =>
-  obj.hasOwnProperty('id')
-    ? obj.id.toString()
+const objectToId = (key, obj) =>
+  obj.hasOwnProperty(key)
+    ? obj[key].toString()
     : sha1base64(fastJsonStableStringify(obj))
 
 const main = async (stdin, stdout, stderr, argv, home) => {
@@ -85,7 +85,7 @@ const main = async (stdin, stdout, stderr, argv, home) => {
     streamArray(),
     transform(({ value }) => value),
     filter((obj) =>
-      findLineInFile(cacheFilePath, objectToId(obj)).then((x) => !x)
+      findLineInFile(cacheFilePath, objectToId(opts.idKey, obj)).then((x) => !x)
     ),
     reduce((acc, value) => acc.concat(value), [])
   )
@@ -93,7 +93,7 @@ const main = async (stdin, stdout, stderr, argv, home) => {
       (newItems) =>
         new Promise((resolve) => {
           if (newItems !== null) {
-            newItems.map(objectToId).forEach((id) => {
+            newItems.map(obj => objectToId(opts.idKey, obj)).forEach((id) => {
               debug(`${id} added to cache`)
               cacheWriteStream.write(id + '\n')
             })

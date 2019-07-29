@@ -79,6 +79,15 @@ describe('cache', () => {
     ).resolves.toBe('1\n2\n')
   })
 
+  test('uses given id instead of hash if available', async () => {
+    const input = [{ test_id: 1 }, { test_id: 2 }]
+    const [home] = temp()
+    await run(input, '--id-key test_id', home)
+    expect(
+      readFile(path.join(home, '.config', 'json-notify', 'default.cache'))
+    ).resolves.toBe('1\n2\n')
+  })
+
   test('appends hash to existing default cache', async () => {
     const input = [...TEST_INPUT, { foo: '123' }]
     const [home] = temp()
